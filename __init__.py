@@ -451,6 +451,19 @@ class radio:
 
 		return None
 
+	def fill_fifo(self, message, include_length = True):
+		new_message = [self.__register_number('fifo')]
+		if include_length:
+			new_message = new_message + [len(message)]
+		new_message = new_message + message
+		log_message = [] + new_message
+
+		# Transfer the message
+		result = self.__spi.xfer(new_message, self.__spi.max_speed_hz, 10)
+		self.__debug("Writing: {} = {}".format(log_message, result))
+
+		return new_message
+
 	def transmit(self, message, channel = None):
 		if channel is None:
 			state = self.get_register_bits('radio_state')
@@ -469,13 +482,7 @@ class radio:
 		})
 
 		# Format message to send to fifo
-		## XXX: TODO: Length encoding is optional, should check register
-		message = [self.__register_number('fifo'), len(message)] + message
-		log_message = [] + message
-
-		# Transfer the message
-		result = self.__spi.xfer(message, self.__spi.max_speed_hz, 10)
-		self.__debug("Writing: {} = {}".format(log_message, result))
+		self.fill_fifo(message, True)
 
 		# Tell the radio to transmit the FIFO buffer to the specified channel
 		self.put_register_bits('radio_state', {
