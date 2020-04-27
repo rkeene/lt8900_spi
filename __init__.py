@@ -220,6 +220,9 @@ class radio:
 
 		return None
 
+	def __del__(self):
+		self.__spi.close()
+
 	def __debug(self, message):
 		print("DEBUG: " + message)
 		return None
@@ -387,6 +390,9 @@ class radio:
 
 	def configure(self, config):
 		self.__config = config
+
+		if config is None:
+			return None
 
 		self.__spi.max_speed_hz = self.__config.get('frequency', 4000000)
 
