@@ -222,8 +222,6 @@ class radio:
 		spi.open(spi_bus, spi_dev)
 		self.__spi = spi
 
-		self.__set_spi_mode(1)
-
 		self.configure(config)
 
 		if len(self.__register_map) != 53:
@@ -259,17 +257,7 @@ class radio:
 				return reg_number
 		raise NameError("Invalid register value {}".format(reg_string_orig))
 
-	def __set_spi_mode(self, mode):
-		if mode != self.__spi.mode:
-			self.__spi.mode = mode
-		return True
-
-	def __get_spi_mode(self):
-		return self.__spi.mode
-
 	def __check_radio(self):
-		old_mode = self.__get_spi_mode()
-
 		value1 = self.get_register(0);
 		value2 = self.get_register(1);
 
@@ -406,6 +394,12 @@ class radio:
 			return None
 
 		self.__spi.max_speed_hz = self.__config.get('frequency', 4000000)
+		self.__spi.bits_per_word = self.__config.get('bits_per_word', 8)
+		self.__spi.cshigh = self.__config.get('csigh', False)
+		self.__spi.no_cs  = self.__config.get('no_cs', False)
+		self.__spi.lsbfirst = self.__config.get('lsbfirst', False)
+		self.__spi.threewire = self.__config.get('threewire', False)
+		self.__spi.mode = self.__config.get('mode', 1)
 
 		return None
 
