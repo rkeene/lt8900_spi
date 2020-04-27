@@ -118,8 +118,19 @@ class radio:
 			'br_clock_sel': [1, 3],
 			'reserved_1': [0, 0]
 		},
-		{'name': "Unknown"}, # 33
-		{'name': "Unknown"}, # 34
+		{                    # 33
+			'name': "vco_pa_delays",
+			'vco_on_delay': [8, 15],
+			'pa_off_delay': [6, 7],
+			'pa_tx_delay': [0, 5]
+		},
+		{                    # 34
+			'name': "tx_packet_delays",
+			'packet_control_direct': [15, 15],
+			'tx_cw_delay': [8, 14],
+			'reserved_1': [6, 7],
+			'tx_sw_on_delay': [0, 5]
+		},
 		{                    # 35
 			'name': "chip_power",
 			'power_down': [15, 15],
@@ -479,7 +490,7 @@ class radio:
 			radio_status = self.get_register_bits('status')
 			self.__debug("radio_status={}".format(radio_status))
 
-			if radio_status['fifo_flag'] == 0:
+			if radio_status['packet_flag'] == 1:
 				break
 			time.sleep(0.1)
 
