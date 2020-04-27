@@ -503,12 +503,12 @@ class radio:
 
 		return True
 
-	def multi_transmit(self, message, channels, retries = 3):
+	def multi_transmit(self, message, channels, retries = 3, delay = 0.1):
 		for i in range(retries):
 			for channel in channels:
 				if not self.transmit(message, channel):
 					return False
-				time.sleep(0.1 / retries)
+				time.sleep(delay / retries)
 		return True
 
 	def start_listening(self, channel):
