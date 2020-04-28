@@ -316,9 +316,6 @@ class radio:
 		else:
 			self._debug("regWrite[%02X:0x%02X%02X] = %s" % (reg, high, low, result))
 
-		#if reg & 0x80 != 0x80:
-		#	time.sleep(delay / 1000.0)
-
 		return result
 
 	def put_register(self, reg, value):
@@ -493,7 +490,7 @@ class radio:
 
 			if radio_status['packet_flag'] == 1:
 				break
-			time.sleep(0.1)
+			time.sleep(0.001)
 
 		return True
 
@@ -502,7 +499,8 @@ class radio:
 			for i in range(retries):
 				if not self.transmit(message, channel):
 					return False
-				time.sleep(delay / retries)
+				if delay != 0:
+					time.sleep(delay / retries)
 		return True
 
 	def start_listening(self, channel):
