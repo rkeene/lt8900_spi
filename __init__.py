@@ -8,7 +8,7 @@
 # |-------+-------+----- -+-------+-------+-------+--------|
 # | 3.3v  | Reset | SPI   | SPI   | SPI   | SPI   | Ground |
 # |       |       |       |       | Clock | CE0   |        |
-# -___+_______+_______+_______+_______+_______+_______+____-
+# -___+___|___+___|___+___|___+___|___+___|___+___|___+____-
 #     |       |       |       |       |       |       |
 #     |       |       |       |       |       |       |
 #     |       |       |       |       |       |       |
@@ -23,7 +23,7 @@ import spidev
 import time
 
 class radio:
-	__register_map = [
+	_register_map = [
 		{'name': "Unknown"}, # 0
 		{'name': "Unknown"}, # 1
 		{'name': "Unknown"}, # 2
@@ -220,44 +220,44 @@ class radio:
 	def __init__(self, spi_bus, spi_dev, config = None):
 		spi = spidev.SpiDev()
 		spi.open(spi_bus, spi_dev)
-		self.__spi = spi
+		self._spi = spi
 
 		self.configure(config)
 
-		if len(self.__register_map) != 53:
+		if len(self._register_map) != 53:
 			raise ValueError('Inconsistent register map!')
 
 		return None
 
 	def __del__(self):
-		self.__spi.close()
+		self._spi.close()
 
-	def __debug(self, message):
-		print("DEBUG: " + message)
+	def _debug(self, message):
+		#print("LT8900 DEBUG: " + message)
 		return None
 
-	def __reset_device(self):
-		if self.__config is not None:
-			if self.__config['reset_command'] is not None:
-				return self.__config['reset_command']()
+	def _reset_device(self):
+		if self._config is not None:
+			if self._config['reset_command'] is not None:
+				return self._config['reset_command']()
 		return None
 
-	def __register_name(self, reg_number):
-		return self.__register_map[reg_number]['name']
+	def _register_name(self, reg_number):
+		return self._register_map[reg_number]['name']
 
-	def __register_number(self, reg_string):
+	def _register_number(self, reg_string):
 		reg_string_orig = reg_string
 
 		if isinstance(reg_string, int):
 			return reg_string
 		if reg_string.isnumeric():
 			return int(reg_string)
-		for reg_number, reg_info in enumerate(self.__register_map):
+		for reg_number, reg_info in enumerate(self._register_map):
 			if reg_info['name'] == reg_string:
 				return reg_number
 		raise NameError("Invalid register value {}".format(reg_string_orig))
 
-	def __check_radio(self):
+	def _check_radio(self):
 		value1 = self.get_register(0);
 		value2 = self.get_register(1);
 
@@ -265,7 +265,7 @@ class radio:
 			return True
 		return False
 
-	def __set_defaults(self):
+	def _set_defaults(self):
 		self.put_register_bits('radio_state', {'tx_enabled': 0, 'rx_enabled': 0, 'channel': 76})
 		self.put_register_bits('power', {'current': 4, 'gain': 0})
 		self.put_register_bits('rssi_power', {'mode': 0})
@@ -307,31 +307,31 @@ class radio:
 
 		return True
 
-	def __put_register_high_low(self, reg, high, low, delay = 7):
-		reg = self.__register_number(reg)
-		result = self.__spi.xfer([reg, high, low], self.__spi.max_speed_hz, delay)
+	def _put_register_high_low(self, reg, high, low, delay = 7):
+		reg = self._register_number(reg)
+		result = self._spi.xfer([reg, high, low], self._spi.max_speed_hz, delay)
 
 		if reg & 0x80 == 0x80:
-			self.__debug(" regRead[%02X] = %s" % ((reg & 0x7f), result))
+			self._debug(" regRead[%02X] = %s" % ((reg & 0x7f), result))
 		else:
-			self.__debug("regWrite[%02X:0x%02X%02X] = %s" % (reg, high, low, result))
+			self._debug("regWrite[%02X:0x%02X%02X] = %s" % (reg, high, low, result))
 
-		if reg & 0x80 != 0x80:
-			time.sleep(delay / 1000.0)
+		#if reg & 0x80 != 0x80:
+		#	time.sleep(delay / 1000.0)
 
 		return result
 
 	def put_register(self, reg, value):
 		high = (value >> 8) & 0xff
 		low  = value & 0xff
-		return self.__put_register_high_low(reg, high, low)
+		return self._put_register_high_low(reg, high, low)
 
 	def put_register_bits(self, reg, bits_dict):
 		# Convert register to an integer
-		reg = self.__register_number(reg)
+		reg = self._register_number(reg)
 
 		# Lookup register in the register map
-		register_info = self.__register_map[reg]
+		register_info = self._register_map[reg]
 
 		# Create a dictionary to hold the parsed results
 		value = 0
@@ -349,13 +349,13 @@ class radio:
 
 	def get_register(self, reg):
 		# Convert register to an integer
-		reg = self.__register_number(reg)
+		reg = self._register_number(reg)
 
 		# Reading of a register is indicated by setting high bit
 		read_reg = reg | 0b10000000
 
 		# Put the request with space for the reply
-		value = self.__put_register_high_low(read_reg, 0, 0)
+		value = self._put_register_high_low(read_reg, 0, 0)
 
 		# The reply is stored in the lower two bytes
 		result = value[1] << 8 | value[2]
@@ -365,14 +365,14 @@ class radio:
 
 	def get_register_bits(self, reg, value = None):
 		# Convert register to an integer
-		reg = self.__register_number(reg)
+		reg = self._register_number(reg)
 
 		# Get the register's value (unless one was supplied)
 		if value is None:
 			value = self.get_register(reg)
 
 		# Lookup register in the register map
-		register_info = self.__register_map[reg]
+		register_info = self._register_map[reg]
 
 		# Create a dictionary to hold the parsed results
 		result = {'name': register_info['name']}
@@ -388,27 +388,27 @@ class radio:
 		return result
 
 	def configure(self, config):
-		self.__config = config
+		self._config = config
 
 		if config is None:
 			return None
 
-		self.__spi.max_speed_hz = self.__config.get('frequency', 4000000)
-		self.__spi.bits_per_word = self.__config.get('bits_per_word', 8)
-		self.__spi.cshigh = self.__config.get('csigh', False)
-		self.__spi.no_cs  = self.__config.get('no_cs', False)
-		self.__spi.lsbfirst = self.__config.get('lsbfirst', False)
-		self.__spi.threewire = self.__config.get('threewire', False)
-		self.__spi.mode = self.__config.get('mode', 1)
+		self._spi.max_speed_hz = self._config.get('frequency', 4000000)
+		self._spi.bits_per_word = self._config.get('bits_per_word', 8)
+		self._spi.cshigh = self._config.get('csigh', False)
+		self._spi.no_cs  = self._config.get('no_cs', False)
+		self._spi.lsbfirst = self._config.get('lsbfirst', False)
+		self._spi.threewire = self._config.get('threewire', False)
+		self._spi.mode = self._config.get('mode', 1)
 
 		return None
 
 	def initialize(self):
-		self.__reset_device()
+		self._reset_device()
 
-		self.__set_defaults()
+		self._set_defaults()
 
-		if not self.__check_radio():
+		if not self._check_radio():
 			return False
 		return True
 
@@ -446,15 +446,15 @@ class radio:
 		return None
 
 	def fill_fifo(self, message, include_length = True):
-		new_message = [self.__register_number('fifo')]
+		new_message = [self._register_number('fifo')]
 		if include_length:
 			new_message = new_message + [len(message)]
 		new_message = new_message + message
 		log_message = [] + new_message
 
 		# Transfer the message
-		result = self.__spi.xfer(new_message, self.__spi.max_speed_hz, 10)
-		self.__debug("Writing: {} = {}".format(log_message, result))
+		result = self._spi.xfer(new_message, self._spi.max_speed_hz, 10)
+		self._debug("Writing: {} = {}".format(log_message, result))
 
 		return new_message
 
@@ -489,7 +489,7 @@ class radio:
 		# XXX: Untested
 		while True:
 			radio_status = self.get_register_bits('status')
-			self.__debug("radio_status={}".format(radio_status))
+			self._debug("radio_status={}".format(radio_status))
 
 			if radio_status['packet_flag'] == 1:
 				break
@@ -498,14 +498,27 @@ class radio:
 		return True
 
 	def multi_transmit(self, message, channels, retries = 3, delay = 0.1):
-		for i in range(retries):
-			for channel in channels:
+		for channel in channels:
+			for i in range(retries):
 				if not self.transmit(message, channel):
 					return False
 				time.sleep(delay / retries)
 		return True
 
 	def start_listening(self, channel):
+		# Initialize the receiver
+		self.stop_listening()
+
+		# Go into listening mode
+		self.put_register_bits('radio_state', {
+			'tx_enabled': 0,
+			'rx_enabled': 1,
+			'channel': channel
+		})
+
+		return True
+
+	def stop_listening(self):
 		# Initialize the receiver
 		self.put_register_bits('radio_state', {
 			'tx_enabled': 0,
@@ -518,22 +531,15 @@ class radio:
 			'clear_write': 1
 		})
 
-		# Go into listening mode
-		self.put_register_bits('radio_state', {
-			'tx_enabled': 0,
-			'rx_enabled': 1,
-			'channel': channel
-		})
-
 		return True
 
-	def receive(self, channel = None, wait = False, length = None):
+	def receive(self, channel = None, wait = False, length = None, wait_time = 0.1):
 		if wait:
 			if channel is None:
 				state = self.get_register_bits('radio_state')
 				channel = state['channel']
 
-			self.__start_listening(channel)
+			self.start_listening(channel)
 
 		message = []
 
@@ -541,15 +547,14 @@ class radio:
 			radio_status = self.get_register_bits('status')
 			if radio_status['packet_flag'] == 0:
 				if wait:
-					time.sleep(0.1)
+					time.sleep(wait_time)
 					continue
 				else:
 					return None
 
 			if radio_status['crc_error'] == 1:
 				# Handle invalid packet ?
-				# XXX:TODO: Is this sufficient ?
-				self.__start_listening(channel)
+				self.start_listening(channel)
 				continue
 
 			# Data is available, read it from the FIFO register
