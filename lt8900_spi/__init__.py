@@ -544,6 +544,7 @@ class Radio:
 
 		while True:
 			radio_status = self.get_register_bits('status')
+			self._debug("radio_status={}".format(radio_status))
 			if radio_status['packet_flag'] == 0:
 				if wait:
 					time.sleep(wait_time)
@@ -561,6 +562,10 @@ class Radio:
 			# XXX *IF* length encoding is enabled ?
 			fifo_data = self.get_register('fifo')
 			message_length = fifo_data >> 8
+
+			if message_length == 0:
+				self.start_listening(channel)
+				continue
 
 			# Keep track of the total message length to truncate it
 			final_message_length = message_length
