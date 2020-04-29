@@ -1,4 +1,4 @@
-__pycache__
+lt8900_spi/__pycache__
 dist
 *.egg-info
 build/bdist.*
