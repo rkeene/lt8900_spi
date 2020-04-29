@@ -233,7 +233,8 @@ class Radio:
 		self._spi.close()
 
 	def _debug(self, message):
-		#print("LT8900 DEBUG: " + message)
+		if 'debug_log_command' in self._config:
+			self._config['debug_log_command'](message)
 		return None
 
 	def _reset_device(self):
