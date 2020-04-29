@@ -1,0 +1,46 @@
+#! /usr/bin/env bash
+
+target="$1"
+
+for command in twine python3 mktemp gzip tar fossil rm; do
+	if [ -z "$(command -v "${command}" 2>/dev/null)" ]; then
+		echo "error: Unable to find command \"${command}\"" >&2
+		exit 1
+	fi
+done
+
+rootdir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+workdir=''
+
+function cleanup() {
+	if [ -n "${workdir}" ]; then
+		workdir=''
+		cd /
+		rm -rf "${workdir}"
+	fi
+
+	return
+}
+trap cleanup EXIT
+
+set -e
+
+workdir="$(mktemp -d)"
+
+cd "${rootdir}"
+
+fossil tarball current - --name '' | gzip -dc | (
+	set -e
+
+	cd "${workdir}"
+
+	tar -vxf -
+
+	python3 setup.py sdist bdist_wheel
+)
+
+(
+	set -e
+	cd "${workdir}"
+	python3 -m twine upload --repository "${target:-testpypi}" dist/*
+)
