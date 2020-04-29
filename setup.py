@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
 	name="lt8900_spi", # Replace with your own username
-	version="1.0",
+	version="2.0",
 	author="Roy Keene",
 	author_email="pypi@rkeene.org",
 	description="Python interface to an LT8900 connected via SPI",
