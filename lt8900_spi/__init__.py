@@ -22,7 +22,7 @@
 import spidev
 import time
 
-class radio:
+class Radio:
 	_register_map = [
 		{'name': "Unknown"}, # 0
 		{'name': "Unknown"}, # 1

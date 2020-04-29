@@ -5,21 +5,21 @@ This Python module enables a Python to talk to an LT8900 radio attached to an se
 ## API
 ### Synopsis
 
-    lt8900_spi.radio(spi_bus, spi_dev, config = None) -> instance
-    lt8900_spi.radio.put_register(reg, value) -> value
-    lt8900_spi.radio.put_register_bits(reg, bits_dict) -> value
-    lt8900_spi.radio.get_register(reg) -> value
-    lt8900_spi.radio.get_register_bits(reg, value = None) -> dictionary
-    lt8900_spi.radio.configure(config) -> None
-    lt8900_spi.radio.initialize() -> boolean
-    lt8900_spi.radio.set_channel(channel) -> dictionary
-    lt8900_spi.radio.set_syncword(syncword) -> None
-    lt8900_spi.radio.fill_fifo(message, include_length = True) -> list
-    lt8900_spi.radio.transmit(message, channel = None) -> boolean
-    lt8900_spi.radio.multi_transmit(message, channels, retries = 3, delay = 0.1) -> boolean
-    lt8900_spi.radio.start_listening(channel) -> boolean
-    lt8900_spi.radio.stop_listening() -> boolean
-    lt8900_spi.radio.receive(channel = None, wait = False, length = None, wait_time = 0.1) -> list
+    lt8900_spi.Radio(spi_bus, spi_dev, config = None) -> instance
+    lt8900_spi.Radio.put_register(reg, value) -> value
+    lt8900_spi.Radio.put_register_bits(reg, bits_dict) -> value
+    lt8900_spi.Radio.get_register(reg) -> value
+    lt8900_spi.Radio.get_register_bits(reg, value = None) -> dictionary
+    lt8900_spi.Radio.configure(config) -> None
+    lt8900_spi.Radio.initialize() -> boolean
+    lt8900_spi.Radio.set_channel(channel) -> dictionary
+    lt8900_spi.Radio.set_syncword(syncword) -> None
+    lt8900_spi.Radio.fill_fifo(message, include_length = True) -> list
+    lt8900_spi.Radio.transmit(message, channel = None) -> boolean
+    lt8900_spi.Radio.multi_transmit(message, channels, retries = 3, delay = 0.1) -> boolean
+    lt8900_spi.Radio.start_listening(channel) -> boolean
+    lt8900_spi.Radio.stop_listening() -> boolean
+    lt8900_spi.Radio.receive(channel = None, wait = False, length = None, wait_time = 0.1) -> list
 
 ### instance.get\_register\_bits
 
@@ -65,7 +65,7 @@ Transmit a message across multiple channels multiple times.  This is a common pa
     	reset_gpio.on()
     	time.sleep(0.1)
 
-    radio = lt8900_spi.radio(0, 0, {
+    radio = lt8900_spi.Radio(0, 0, {
     	'reset_command': reset_module_via_gpio
     })
     
