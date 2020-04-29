@@ -233,7 +233,7 @@ class Radio:
 		self._spi.close()
 
 	def _debug(self, message):
-		if 'debug_log_command' in self._config:
+		if self._config is not None and 'debug_log_command' in self._config:
 			self._config['debug_log_command'](message)
 		return None
 
