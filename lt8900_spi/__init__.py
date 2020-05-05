@@ -31,6 +31,55 @@ class dummy_context_mgr():
 		return False
 
 class Radio:
+	_default_register_values = {
+		'format_config': {
+			'crc_enabled': 1,
+			'scramble_enabled': 0,
+			'packet_length_encoded': 1,
+			'auto_term_tx': 1,
+			'auto_ack': 0,
+			'pkt_fifo_polarity': 0,
+			'crc_initial_data': 0
+		},
+		'radio_state': {'tx_enabled': 0, 'rx_enabled': 0, 'channel': 76},
+		'power': {'current': 4, 'gain': 0},
+		'rssi_power': {'mode': 0},
+		'crystal': {'trim_adjust': 0},
+		'packet_config': {
+			'preamble_len': 2,
+			'syncword_len': 1,
+			'trailer_len': 0,
+			'packet_type': 0,
+			'fec_type': 0,
+			'br_clock_sel': 0
+		},
+		'chip_power': {
+			'power_down': 0,
+			'sleep_mode': 0,
+			'br_clock_on_sleep': 0,
+			'rexmit_times': 3,
+			'miso_tri_opt': 0,
+			'scramble_value': 0
+		},
+		'thresholds': {
+			'fifo_empty_threshold': 8,
+			'fifo_full_threshold': 16,
+			'syncword_error_bits': 2
+		},
+		'format_config': {
+			'crc_enabled': 1,
+			'scramble_enabled': 0,
+			'packet_length_encoded': 1,
+			'auto_term_tx': 1,
+			'auto_ack': 0,
+			'pkt_fifo_polarity': 0,
+			'crc_initial_data': 0
+		},
+		'scan_rssi': {'channel': 63, 'ack_time': 176},
+		'gain_block': {'enabled': 1},
+		'vco_calibrate': {'enabled': 1},
+		'scan_rssi_state': {'enabled': 0, 'channel_offset': 0, 'wait_time': 15}
+	}
 	_register_map = [
 		{'name': "Unknown"}, # 0
 		{'name': "Unknown"}, # 1
@@ -253,12 +302,28 @@ class Radio:
 			self._config['debug_log_command'](message)
 		return None
 
+	def _info(self, message):
+		log_command = None
+		if 'info_log_command' in self._config:
+			log_command = self._config['info_log_command']
+		elif 'debug_log_command' in self._config:
+			log_command = self._config['debug_log_command']
+		if log_command is None:
+			return None
+
+		log_command(message)
+		return None
+
 	def _error(self, message):
 		log_command = None
 		if 'error_log_command' in self._config:
 			log_command = self._config['error_log_command']
+		elif 'info_log_command' in self._config:
+			log_command = self._config['info_log_command']
 		elif 'debug_log_command' in self._config:
 			log_command = self._config['debug_log_command']
+		if log_command is None:
+			return None
 		log_command(message)
 		return None
 
@@ -270,6 +335,7 @@ class Radio:
 		return mutex
 
 	def _reset_device(self):
+		self._info("Resetting radio {}".format(__name__))
 		reset_command = self._config.get('reset_command', None)
 
 		if reset_command is None:
@@ -308,49 +374,24 @@ class Radio:
 			return True
 		return False
 
-	def _set_defaults(self):
-		self.put_register_bits('radio_state', {'tx_enabled': 0, 'rx_enabled': 0, 'channel': 76})
-		self.put_register_bits('power', {'current': 4, 'gain': 0})
-		self.put_register_bits('rssi_power', {'mode': 0})
-		self.put_register_bits('crystal', {'trim_adjust': 0})
-		self.put_register_bits('packet_config', {
-			'preamble_len': 2,
-			'syncword_len': 1,
-			'trailer_len': 0,
-			'packet_type': 0,
-			'fec_type': 0,
-			'br_clock_sel': 0
-		})
-		self.put_register_bits('chip_power', {
-			'power_down': 0,
-			'sleep_mode': 0,
-			'br_clock_on_sleep': 0,
-			'rexmit_times': 3,
-			'miso_tri_opt': 0,
-			'scramble_value': 0
-		})
-		self.put_register_bits('thresholds', {
-			'fifo_empty_threshold': 8,
-			'fifo_full_threshold': 16,
-			'syncword_error_bits': 2
-		})
-		self.put_register_bits('format_config', {
-			'crc_enabled': 1,
-			'scramble_enabled': 0,
-			'packet_length_encoded': 1,
-			'auto_term_tx': 1,
-			'auto_ack': 0,
-			'pkt_fifo_polarity': 0,
-			'crc_initial_data': 0
-		})
-		self.put_register_bits('scan_rssi', {'channel': 63, 'ack_time': 176})
-		self.put_register_bits('gain_block', {'enabled': 1})
-		self.put_register_bits('vco_calibrate', {'enabled': 1})
-		self.put_register_bits('scan_rssi_state', {'enabled': 0, 'channel_offset': 0, 'wait_time': 15})
+	def _get_default_register_value(self, register):
+		return self._default_register_values.get(register, {})
+
+	def _set_default_register_values(self):
+		self._last_format_config = {}
+		for register_name, register_value in self._default_register_values.items():
+			if register_name == 'format_config':
+				self._apply_packet_format_config({})
+				continue
+
+			self.put_register_bits(register_name, register_value)
 
 		return True
 
-	def _put_register_high_low(self, reg, high, low, delay = 7):
+	def _put_register_high_low(self, reg, high, low, delay = None):
+		if delay is None:
+			delay = 10
+
 		reg = self._register_number(reg)
 
 		result = self._spi.xfer([reg, high, low], self._spi.max_speed_hz, delay)
@@ -362,12 +403,12 @@ class Radio:
 
 		return result
 
-	def put_register(self, reg, value):
+	def put_register(self, reg, value, delay = None):
 		high = (value >> 8) & 0xff
 		low  = value & 0xff
-		return self._put_register_high_low(reg, high, low)
+		return self._put_register_high_low(reg, high, low, delay = delay)
 
-	def put_register_bits(self, reg, bits_dict):
+	def put_register_bits(self, reg, bits_dict, delay = None):
 		# Convert register to an integer
 		reg = self._register_number(reg)
 
@@ -384,7 +425,7 @@ class Radio:
 			key_value = (bits_dict[key] << bit_range[0]) & mask
 			value = value | key_value
 
-		result = self.put_register(reg, value)
+		result = self.put_register(reg, value, delay = delay)
 
 		return result
 
@@ -464,11 +505,16 @@ class Radio:
 	def initialize(self):
 		self._reset_device()
 
-		self._set_defaults()
+		self._set_default_register_values()
 
 		if not self._check_radio():
 			return False
 		return True
+
+	def _reinitialize(self):
+		self.initialize()
+		self.set_syncword(self._last_syncword, submit_queue = None, force = True)
+		self._apply_packet_format_config(self._last_format_config)
 
 	def set_channel(self, channel):
 		state = self.get_register_bits('radio_state')
@@ -521,23 +567,34 @@ class Radio:
 		if include_length:
 			new_message = new_message + [len(message)]
 		new_message = new_message + message
-		log_message = [] + new_message
+		log_message = new_message.copy()
+
+		delay = 10 * len(message)
 
 		# Transfer the message
 		with self._get_mutex(lock):
-			result = self._spi.xfer(new_message, self._spi.max_speed_hz, 0)
+			result = self._spi.xfer(new_message, self._spi.max_speed_hz, delay)
 
 		self._debug("Writing: {} = {}".format(log_message, result))
 
+		need_reset = False
+		for check_result in result:
+			if check_result != 1:
+				need_reset = True
+
+		if need_reset:
+			self._error("While transmitting we got an error, reinitializing everything")
+			self._reinitialize()
+
 		return new_message
 
-	def transmit(self, message, channel = None, lock = True, post_delay = 0, syncword = None, submit_queue = '__DEFAULT__'):
+	def transmit(self, message, channel = None, lock = True, post_delay = 0, syncword = None, submit_queue = '__DEFAULT__', format_config = None):
 		# If we are using a radio transmit queue, just queue this message
 		# (unless we are called from the dequeue procedure)
 		if submit_queue is not None and self._should_use_queue():
 			if syncword is None:
 				syncword = self._last_syncword
-			self._enqueue(submit_queue, syncword, message, channel, post_delay = post_delay)
+			self._enqueue(submit_queue, syncword, message, channel, post_delay = post_delay, format_config = format_config)
 			return True
 
 		sent_packet = True
@@ -546,6 +603,20 @@ class Radio:
 			# Set the syncword
 			if syncword is not None:
 				self.set_syncword(syncword, submit_queue = None)
+
+			# Apply any format changes
+			radio_format_config = self._apply_packet_format_config(format_config)
+
+			# Determine if the length should be included
+			if radio_format_config['packet_length_encoded'] == 1:
+				include_length = True
+			else:
+				include_length = False
+
+			if radio_format_config['auto_term_tx'] == 1:
+				manual_terminate = False
+			else:
+				manual_terminate = True
 
 			if channel is None:
 				state = self.get_register_bits('radio_state')
@@ -564,18 +635,16 @@ class Radio:
 			})
 
 			# Format message to send to fifo
-			self.fill_fifo(message, include_length = True, lock = False)
+			self.fill_fifo(message, include_length = include_length, lock = False)
 
 			# Tell the radio to transmit the FIFO buffer to the specified channel
 			self.put_register_bits('radio_state', {
 				'tx_enabled': 1,
 				'rx_enabled': 0,
 				'channel': channel
-			})
+			}, delay = 1000)
 
-			# Wait for buffer to empty
-			# XXX: Untested
-			while True:
+			while not manual_terminate:
 				radio_status = self.get_register_bits('status')
 				self._debug("radio_status={}".format(radio_status))
 
@@ -587,28 +656,40 @@ class Radio:
 					break
 				time.sleep(0.001)
 
+			# Stop transmitting, if needed
+			if manual_terminate:
+				self.put_register_bits('radio_state', {
+					'tx_enabled': 0,
+					'rx_enabled': 0,
+					'channel': channel
+				})
+
 		if post_delay != 0:
 			time.sleep(post_delay)
 
 		return sent_packet
 
-	def multi_transmit(self, message, channels, retries = 3, delay = 0.1, syncword = None, submit_queue = '__DEFAULT__'):
+	def multi_transmit(self, message, channels, retries = 3, delay = 0.1, syncword = None, submit_queue = '__DEFAULT__', format_config = None):
 		if len(channels) == 0 or retries == 0:
 			self._error("Asked to send the message {} a total of zero times ({} channels, {} retries)".format(message, channels, retries))
+
+		# Wait at-least 350 microseconds between frames
+		min_delay = 350.0 / 1000000.0
+		final_delay = max(min_delay, delay - (min_delay * (len(channels) * retries - 1)))
 
 		for channel_idx in range(len(channels)):
 			if channel_idx == (len(channels) - 1):
 				retries -= 1
 			channel = channels[channel_idx]
 			for i in range(retries):
-				if not self.transmit(message, channel, post_delay = 0, syncword = syncword, submit_queue = submit_queue):
+				if not self.transmit(message, channel, post_delay = min_delay, syncword = syncword, submit_queue = submit_queue):
 					return False
-		if not self.transmit(message, channel, post_delay = delay, syncword = syncword, submit_queue = submit_queue):
+		if not self.transmit(message, channel, post_delay = final_delay, syncword = syncword, submit_queue = submit_queue, format_config = format_config):
 			return False
 
 		return True
 
-	def _enqueue(self, submit_queue, syncword, message, channel, post_delay = 0):
+	def _enqueue(self, submit_queue, syncword, message, channel, post_delay = 0, format_config = None):
 		if not self._should_use_queue():
 			raise ValueError('internal error: _enqueue called with queueing disabled')
 
@@ -620,7 +701,8 @@ class Radio:
 				'syncword': syncword,
 				'message': message,
 				'channel': channel,
-				'post_delay': post_delay
+				'post_delay': post_delay,
+				'format_config': format_config
 			})
 
 		return None
@@ -697,7 +779,7 @@ class Radio:
 					# If the last item we're about to transmit requires a delay, make
 					# a note of it in the queue time and don't pull anything else
 					# from this queue
-					self._software_tx_queue_next_time[submit_queue] = now + item['post_delay']
+					item['submit_queue'] = submit_queue
 					if item['post_delay'] != 0:
 						break
 
@@ -719,6 +801,7 @@ class Radio:
 				syncword = item['syncword']
 				message = item['message']
 				channel = item['channel']
+				format_config = item['format_config']
 
 				if syncword is not None:
 					default_syncword = syncword
@@ -728,7 +811,8 @@ class Radio:
 				if message is None or channel is None:
 					continue
 
-				self.transmit(message, channel, lock = False, submit_queue = None, syncword = syncword, post_delay = 0)
+				self.transmit(message, channel, lock = False, submit_queue = None, syncword = syncword, post_delay = 0, format_config = format_config)
+				self._software_tx_queue_next_time[item['submit_queue']] = time.time() + item['post_delay']
 
 		return [len(to_transmit), remaining_items]
 		
@@ -760,8 +844,40 @@ class Radio:
 
 		return True
 
-	def receive(self, channel = None, wait = False, length = None, wait_time = 0.1):
+	def _apply_packet_format_config(self, format_config):
+		# Apply radio format configuration difference from baseline
+		radio_format_config = self._get_default_register_value('format_config').copy()
+
+		# If a configuration was supplied, update what we want to apply
+		if format_config is not None:
+			radio_format_config.update(format_config)
+
+		if radio_format_config == self._last_format_config:
+			return radio_format_config
+
+		self._last_format_config = radio_format_config
+
+		self.put_register_bits('format_config', radio_format_config, delay = 5000)
+		new_config = self.get_register_bits('format_config')
+		self._info("Updated format_config to be {}".format(new_config))
+
+		return radio_format_config
+
+	def receive(self, channel = None, wait = False, length = None, format_config = None, wait_time = 0.1):
+		# If a length is supplied, assume that the packet is not length encoded
+		# but allow the user to override that by supplying a format config
+		if length is not None:
+			if format_config is None:
+				format_config = {}
+			if 'packet_length_encoded' not in format_config:
+				format_config = format_config.copy()
+				format_config['packet_length_encoded'] = 0
+
 		with self._get_mutex():
+			# Apply the current configuration, if it is already applied
+			# this will be a no-op
+			self._apply_packet_format_config(format_config)
+
 			if wait:
 				if channel is None:
 					state = self.get_register_bits('radio_state')
@@ -771,9 +887,21 @@ class Radio:
 
 			message = []
 
+			crc_error_count = 0
 			while True:
 				radio_status = self.get_register_bits('status')
 				self._debug("radio_status={}".format(radio_status))
+
+				if radio_status['crc_error'] == 1:
+					crc_error_count += 1
+					if crc_error_count > 30:
+						self._reinitialize()
+			
+					self.start_listening(channel)
+					continue
+
+				crc_error_count = 0
+
 				if radio_status['packet_flag'] == 0:
 					if wait:
 						time.sleep(wait_time)
@@ -782,16 +910,16 @@ class Radio:
 						self._unlock_radio()
 						return None
 
-				if radio_status['crc_error'] == 1:
-					# Handle invalid packet ?
-					self.start_listening(channel)
-					continue
-
 				# Data is available, read it from the FIFO register
 				# The first result will include the length
-				# XXX *IF* length encoding is enabled ?
 				fifo_data = self.get_register('fifo')
-				message_length = fifo_data >> 8
+
+				if length is not None:
+					message_length = length
+					message += [fifo_data >> 8]
+					message_length -= 1
+				else:
+					message_length = fifo_data >> 8
 
 				if message_length == 0:
 					self.start_listening(channel)
