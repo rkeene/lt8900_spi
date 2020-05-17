@@ -520,7 +520,7 @@ class Radio:
 		state = self.get_register_bits('radio_state')
 		state['channel'] = channel
 
-		self.put_register_bits('radio_state', state)
+		self.put_register_bits('radio_state', state, delay = 130)
 
 		return state
 
@@ -606,6 +606,7 @@ class Radio:
 
 			# Apply any format changes
 			radio_format_config = self._apply_packet_format_config(format_config)
+			self._debug("Radio format_config = {}".format(radio_format_config))
 
 			# Determine if the length should be included
 			if radio_format_config['packet_length_encoded'] == 1:
@@ -675,14 +676,16 @@ class Radio:
 
 		# Wait at-least 350 microseconds between frames
 		min_delay = 350.0 / 1000000.0
-		final_delay = max(min_delay, delay - (min_delay * (len(channels) * retries - 1)))
+		retry_delay = delay / retries
+		post_delay = max(min_delay, retry_delay)
+		final_delay = delay
 
 		for channel_idx in range(len(channels)):
 			if channel_idx == (len(channels) - 1):
 				retries -= 1
 			channel = channels[channel_idx]
 			for i in range(retries):
-				if not self.transmit(message, channel, post_delay = min_delay, syncword = syncword, submit_queue = submit_queue):
+				if not self.transmit(message, channel, post_delay = post_delay, syncword = syncword, submit_queue = submit_queue, format_config = format_config):
 					return False
 		if not self.transmit(message, channel, post_delay = final_delay, syncword = syncword, submit_queue = submit_queue, format_config = format_config):
 			return False
@@ -792,27 +795,42 @@ class Radio:
 
 				remaining_items += len(self._software_tx_queue[submit_queue])
 
+		to_transmit_ordered = {}
 		default_syncword = None
+		for item in to_transmit:
+			syncword = item['syncword']
+			channel = item['channel']
+			format_config = item['format_config']
+			message = item['message']
+
+			if syncword is not None:
+				default_syncword = syncword
+			else:
+				syncword = default_syncword
+				item['syncword'] = syncword
+
+			if message is None or channel is None:
+				continue
+
+			key = str([syncword, channel])
+
+			if key not in to_transmit_ordered:
+				to_transmit_ordered[key] = []
+
+			to_transmit_ordered[key].append(item)
 
 		self._debug("Getting ready to transmit {} items".format(len(to_transmit)))
 		with self._get_mutex():
-			for item in to_transmit:
-				self._debug("Transmitting item {}".format(item))
-				syncword = item['syncword']
-				message = item['message']
-				channel = item['channel']
-				format_config = item['format_config']
+			for (key, items) in to_transmit_ordered.items():
+				for item in items:
+					self._debug("Transmitting item {}".format(item))
+					syncword = item['syncword']
+					channel = item['channel']
+					format_config = item['format_config']
+					message = item['message']
 
-				if syncword is not None:
-					default_syncword = syncword
-				else:
-					syncword = default_syncword
-
-				if message is None or channel is None:
-					continue
-
-				self.transmit(message, channel, lock = False, submit_queue = None, syncword = syncword, post_delay = 0, format_config = format_config)
-				self._software_tx_queue_next_time[item['submit_queue']] = time.time() + item['post_delay']
+					self.transmit(message, channel, lock = False, submit_queue = None, syncword = syncword, post_delay = 0, format_config = format_config)
+					self._software_tx_queue_next_time[item['submit_queue']] = time.time() + item['post_delay']
 
 		return [len(to_transmit), remaining_items]
 		
