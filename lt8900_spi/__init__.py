@@ -37,12 +37,17 @@ class Radio:
 			'scramble_enabled': 0,
 			'packet_length_encoded': 1,
 			'auto_term_tx': 1,
-			'auto_ack': 0,
+			'auto_ack': 1,
 			'pkt_fifo_polarity': 0,
 			'crc_initial_data': 0
 		},
 		'radio_state': {'tx_enabled': 0, 'rx_enabled': 0, 'channel': 76},
-		'power': {'current': 4, 'gain': 0},
+		'undocumented_power': {'value': 0x6c90},
+		'power': {
+			'current': 8,
+			'reserved_1': 1,
+			'gain': 0
+		},
 		'rssi_power': {'mode': 0},
 		'crystal': {'trim_adjust': 0},
 		'packet_config': {
@@ -57,7 +62,7 @@ class Radio:
 			'power_down': 0,
 			'sleep_mode': 0,
 			'br_clock_on_sleep': 0,
-			'rexmit_times': 3,
+			'rexmit_times': 10,
 			'miso_tri_opt': 0,
 			'scramble_value': 0
 		},
@@ -66,18 +71,9 @@ class Radio:
 			'fifo_full_threshold': 16,
 			'syncword_error_bits': 2
 		},
-		'format_config': {
-			'crc_enabled': 1,
-			'scramble_enabled': 0,
-			'packet_length_encoded': 1,
-			'auto_term_tx': 1,
-			'auto_ack': 0,
-			'pkt_fifo_polarity': 0,
-			'crc_initial_data': 0
-		},
 		'scan_rssi': {'channel': 63, 'ack_time': 176},
 		'gain_block': {'enabled': 1},
-		'vco_calibrate': {'enabled': 1},
+		'vco_calibrate': {'enabled': 0},
 		'scan_rssi_state': {'enabled': 0, 'channel_offset': 0, 'wait_time': 15}
 	}
 	_register_map = [
@@ -104,7 +100,10 @@ class Radio:
 			'rx_enabled': [7, 7],
 			'channel': [0, 6]
 		},
-		{'name': "Unknown"}, # 8
+		{                   # 8
+			'name': "undocumented_power",
+			'value': [0, 15]
+		},
 		{                    # 9
 			'name': "power",
 			'current': [12, 15],
@@ -676,8 +675,7 @@ class Radio:
 
 		# Wait at-least 350 microseconds between frames
 		min_delay = 350.0 / 1000000.0
-		retry_delay = delay / retries
-		post_delay = max(min_delay, retry_delay)
+		post_delay = min_delay
 		final_delay = delay
 
 		for channel_idx in range(len(channels)):
