@@ -371,6 +371,9 @@ class Radio:
 
 		if value1 == 0x6fe0 and value2 == 0x5681:
 			return True
+
+		self._debug(f'Expected 0x6fe0, 0x5681 and got 0x{value1:04x}, 0x{value2:04x}')
+
 		return False
 
 	def _get_default_register_value(self, register):
@@ -673,8 +676,8 @@ class Radio:
 		if len(channels) == 0 or retries == 0:
 			self._error("Asked to send the message {} a total of zero times ({} channels, {} retries)".format(message, channels, retries))
 
-		# Wait at-least 350 microseconds between frames
-		min_delay = 350.0 / 1000000.0
+		# Wait at-least 650 microseconds between frames
+		min_delay = 650.0 / 1000000.0
 		post_delay = min_delay
 		final_delay = delay
 
